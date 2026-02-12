@@ -58,22 +58,12 @@ class BiMVFIModel:
         img0 = frame0.to(device)
         img1 = frame1.to(device)
 
-        _, _, h, w = img0.shape
-        if h >= 2160:
-            pyr_level = 7
-        elif h >= 1080:
-            pyr_level = 6
-        elif h >= 540:
-            pyr_level = 5
-        else:
-            pyr_level = self.pyr_level
-
         time_step_tensor = torch.tensor([time_step], device=device).view(1, 1, 1, 1)
 
         result_dict = self.model(
             img0=img0, img1=img1,
             time_step=time_step_tensor,
-            pyr_level=pyr_level,
+            pyr_level=self.pyr_level,
         )
 
         interp = result_dict["imgt_pred"]

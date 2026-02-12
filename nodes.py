@@ -59,7 +59,7 @@ class LoadBIMVFIModel:
                 }),
                 "pyr_level": ("INT", {
                     "default": 3, "min": 3, "max": 7, "step": 1,
-                    "tooltip": "Pyramid levels for coarse-to-fine processing. Only used for <540p. Higher res auto-selects: 540p=5, 1080p=6, 4K=7. More levels = captures larger motion but slower.",
+                    "tooltip": "Pyramid levels for coarse-to-fine processing. More levels = captures larger motion but slower. Recommended: 3-5 for <540p, 5-6 for 1080p, 6-7 for 4K.",
                 }),
             }
         }
