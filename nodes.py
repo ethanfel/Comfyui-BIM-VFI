@@ -360,7 +360,8 @@ class TweenConcatVideos:
                 "output_directory": ("STRING", {
                     "default": "",
                     "tooltip": "Directory containing the segment video files. "
-                               "Leave empty to use ComfyUI's default output directory.",
+                               "Leave empty to use ComfyUI's default output directory. "
+                               "Relative paths are resolved from the output directory.",
                 }),
                 "filename_prefix": ("STRING", {
                     "default": "segment",
@@ -406,10 +407,13 @@ class TweenConcatVideos:
         return ffmpeg_path
 
     def concat(self, model, output_directory, filename_prefix, output_filename, delete_segments, preview):
-        # Resolve output directory
+        # Resolve output directory — empty or relative paths are relative to ComfyUI output
+        comfy_output = folder_paths.get_output_directory()
         out_dir = output_directory.strip()
         if not out_dir:
-            out_dir = folder_paths.get_output_directory()
+            out_dir = comfy_output
+        elif not os.path.isabs(out_dir):
+            out_dir = os.path.join(comfy_output, out_dir)
 
         if not os.path.isdir(out_dir):
             raise ValueError(f"Output directory does not exist: {out_dir}")
@@ -481,24 +485,23 @@ class TweenConcatVideos:
         result = {"result": (output_path,)}
 
         if preview:
-            filename = os.path.basename(output_path)
-            # Determine subfolder relative to ComfyUI output dir
-            comfy_output = folder_paths.get_output_directory()
-            if os.path.abspath(out_dir) == os.path.abspath(comfy_output):
-                subfolder = ""
+            # Preview only works when the file is inside ComfyUI's output tree
+            abs_out = os.path.abspath(out_dir)
+            abs_comfy = os.path.abspath(comfy_output)
+            if abs_out.startswith(abs_comfy + os.sep) or abs_out == abs_comfy:
+                subfolder = os.path.relpath(abs_out, abs_comfy) if abs_out != abs_comfy else ""
+                result["ui"] = {
+                    "gifs": [{
+                        "filename": os.path.basename(output_path),
+                        "subfolder": subfolder,
+                        "type": "output",
+                        "format": "video/mp4",
+                    }]
+                }
             else:
-                try:
-                    subfolder = os.path.relpath(out_dir, comfy_output)
-                except ValueError:
-                    subfolder = ""
-            result["ui"] = {
-                "gifs": [{
-                    "filename": filename,
-                    "subfolder": subfolder,
-                    "type": "output",
-                    "format": "video/mp4",
-                }]
-            }
+                logger.warning(
+                    f"Video preview skipped: {out_dir} is outside ComfyUI output directory"
+                )
 
         return result
 
