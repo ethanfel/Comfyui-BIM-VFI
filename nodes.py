@@ -57,9 +57,13 @@ class LoadBIMVFIModel:
                     "default": MODEL_FILENAME,
                     "tooltip": "Checkpoint file from models/bim-vfi/. Auto-downloads on first use if missing.",
                 }),
+                "auto_pyr_level": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Automatically select pyramid level based on input resolution: <540p=3, 540p=5, 1080p=6, 4K=7. Disable to use manual pyr_level.",
+                }),
                 "pyr_level": ("INT", {
                     "default": 3, "min": 3, "max": 7, "step": 1,
-                    "tooltip": "Pyramid levels for coarse-to-fine processing. More levels = captures larger motion but slower. Recommended: 3-5 for <540p, 5-6 for 1080p, 6-7 for 4K.",
+                    "tooltip": "Manual pyramid levels for coarse-to-fine processing. Only used when auto_pyr_level is disabled. More levels = captures larger motion but slower.",
                 }),
             }
         }
@@ -69,7 +73,7 @@ class LoadBIMVFIModel:
     FUNCTION = "load_model"
     CATEGORY = "video/BIM-VFI"
 
-    def load_model(self, model_path, pyr_level):
+    def load_model(self, model_path, auto_pyr_level, pyr_level):
         full_path = os.path.join(MODEL_DIR, model_path)
 
         if not os.path.exists(full_path):
@@ -79,10 +83,12 @@ class LoadBIMVFIModel:
         wrapper = BiMVFIModel(
             checkpoint_path=full_path,
             pyr_level=pyr_level,
+            auto_pyr_level=auto_pyr_level,
             device="cpu",
         )
 
-        logger.info(f"BIM-VFI model loaded (pyr_level={pyr_level})")
+        mode = "auto" if auto_pyr_level else f"manual ({pyr_level})"
+        logger.info(f"BIM-VFI model loaded (pyr_level={mode})")
         return (wrapper,)
 
 
