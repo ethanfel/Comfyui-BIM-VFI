@@ -53,8 +53,14 @@ class LoadBIMVFIModel:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model_path": (get_available_models(), {"default": MODEL_FILENAME}),
-                "pyr_level": ("INT", {"default": 3, "min": 3, "max": 7, "step": 1}),
+                "model_path": (get_available_models(), {
+                    "default": MODEL_FILENAME,
+                    "tooltip": "Checkpoint file from models/bim-vfi/. Auto-downloads on first use if missing.",
+                }),
+                "pyr_level": ("INT", {
+                    "default": 3, "min": 3, "max": 7, "step": 1,
+                    "tooltip": "Pyramid levels for coarse-to-fine processing. Only used for <540p. Higher res auto-selects: 540p=5, 1080p=6, 4K=7. More levels = captures larger motion but slower.",
+                }),
             }
         }
 
@@ -85,12 +91,28 @@ class BIMVFIInterpolate:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "images": ("IMAGE",),
-                "model": ("BIM_VFI_MODEL",),
-                "multiplier": ([2, 4, 8], {"default": 2}),
-                "clear_cache_after_n_frames": ("INT", {"default": 10, "min": 1, "max": 100, "step": 1}),
-                "keep_device": ("BOOLEAN", {"default": True}),
-                "all_on_gpu": ("BOOLEAN", {"default": False}),
+                "images": ("IMAGE", {
+                    "tooltip": "Input image batch. Output frame count: 2x=(2N-1), 4x=(4N-3), 8x=(8N-7).",
+                }),
+                "model": ("BIM_VFI_MODEL", {
+                    "tooltip": "BIM-VFI model from the Load BIM-VFI Model node.",
+                }),
+                "multiplier": ([2, 4, 8], {
+                    "default": 2,
+                    "tooltip": "Frame rate multiplier. 2x=one interpolation pass, 4x=two recursive passes, 8x=three. Higher = more frames but longer processing.",
+                }),
+                "clear_cache_after_n_frames": ("INT", {
+                    "default": 10, "min": 1, "max": 100, "step": 1,
+                    "tooltip": "Clear CUDA cache every N frame pairs to prevent VRAM buildup. Lower = less VRAM but slower. Ignored when all_on_gpu is enabled.",
+                }),
+                "keep_device": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Keep model on GPU between frame pairs. Faster but uses ~200MB VRAM constantly. Disable to free VRAM between pairs (slower due to CPU-GPU transfers).",
+                }),
+                "all_on_gpu": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Store all intermediate frames on GPU instead of CPU. Much faster (no transfers) but requires enough VRAM for all frames. Recommended for 48GB+ cards.",
+                }),
             }
         }
 
