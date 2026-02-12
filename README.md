@@ -42,6 +42,11 @@ git clone https://github.com/your-user/Comfyui-BIM-VFI.git
 
 Dependencies (`gdown`, `cupy`) are auto-installed on first load. The correct `cupy` variant is detected from your PyTorch CUDA version.
 
+> **Warning:** `cupy` is a large package (~800MB) and compilation/installation can take several minutes. The first ComfyUI startup after installing this node may appear to hang while `cupy` installs in the background. Check the console log for progress. If auto-install fails (e.g. missing build tools in Docker), install manually with:
+> ```bash
+> pip install cupy-cuda12x  # replace 12 with your CUDA major version
+> ```
+
 To install manually:
 
 ```bash
