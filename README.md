@@ -96,7 +96,7 @@ Loads an SGM-VFI checkpoint. Auto-downloads from Google Drive on first use to `C
 Available checkpoints:
 | Checkpoint | Variant | Params |
 |-----------|---------|--------|
-| `ours-1-2-points.pth` | Small | ~15M + GMFlow |
+| `ours-1-2-points.pkl` | Small | ~15M + GMFlow |
 
 #### SGM-VFI Interpolate
 

@@ -34,7 +34,7 @@ if not os.path.exists(EMA_MODEL_DIR):
 
 # Google Drive folder ID for SGM-VFI pretrained models
 SGM_GDRIVE_FOLDER_ID = "1S5O6W0a7XQDHgBtP9HnmoxYEzWBIzSJq"
-SGM_DEFAULT_MODEL = "ours-1-2-points.pth"
+SGM_DEFAULT_MODEL = "ours-1-2-points.pkl"
 
 SGM_MODEL_DIR = os.path.join(folder_paths.models_dir, "sgm-vfi")
 if not os.path.exists(SGM_MODEL_DIR):
