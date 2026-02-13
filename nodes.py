@@ -1895,8 +1895,6 @@ class FlashVSRSegmentUpscale:
         from .flashvsr_arch.models.utils import clean_vram
         clean_vram()
 
-        logger.info(f"[FlashVSR Segment {segment_index}] upscale result: {result.shape}, dtype={result.dtype}")
-
         # Handle crossfade blending with previous segment's tail
         if segment_index > 0 and overlap_frames > 0 and hasattr(model, '_overlap_tail'):
             prev_tail = model._overlap_tail  # [blend_frames, H, W, C] on CPU
@@ -1923,5 +1921,4 @@ class FlashVSRSegmentUpscale:
         else:
             model._overlap_tail = None
 
-        logger.info(f"[FlashVSR Segment {segment_index}] final output: {result.shape}, dtype={result.dtype}, device={result.device}")
         return (result, model)
