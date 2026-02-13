@@ -1,21 +1,22 @@
-# ComfyUI BIM-VFI + EMA-VFI + SGM-VFI
+# ComfyUI BIM-VFI + EMA-VFI + SGM-VFI + GIMM-VFI
 
-ComfyUI custom nodes for video frame interpolation using [BiM-VFI](https://github.com/KAIST-VICLab/BiM-VFI) (CVPR 2025), [EMA-VFI](https://github.com/MCG-NJU/EMA-VFI) (CVPR 2023), and [SGM-VFI](https://github.com/MCG-NJU/SGM-VFI) (CVPR 2024). Designed for long videos with thousands of frames — processes them without running out of VRAM.
+ComfyUI custom nodes for video frame interpolation using [BiM-VFI](https://github.com/KAIST-VICLab/BiM-VFI) (CVPR 2025), [EMA-VFI](https://github.com/MCG-NJU/EMA-VFI) (CVPR 2023), [SGM-VFI](https://github.com/MCG-NJU/SGM-VFI) (CVPR 2024), and [GIMM-VFI](https://github.com/GSeanCDAT/GIMM-VFI) (NeurIPS 2024). Designed for long videos with thousands of frames — processes them without running out of VRAM.
 
 ## Which model should I use?
 
-| | BIM-VFI | EMA-VFI | SGM-VFI |
-|---|---------|---------|---------|
-| **Best for** | General-purpose, non-uniform motion | Fast inference, light VRAM | Large motion, occlusion-heavy scenes |
-| **Quality** | Highest overall | Good | Best on large motion |
-| **Speed** | Moderate | Fastest | Slowest |
-| **VRAM** | ~2 GB/pair | ~1.5 GB/pair | ~3 GB/pair |
-| **Params** | ~17M | ~14–65M | ~15M + GMFlow |
-| **Arbitrary timestep** | Yes | Yes (with `_t` checkpoint) | No (fixed 0.5) |
-| **Paper** | CVPR 2025 | CVPR 2023 | CVPR 2024 |
-| **License** | Research only | Apache 2.0 | Apache 2.0 |
+| | BIM-VFI | EMA-VFI | SGM-VFI | GIMM-VFI |
+|---|---------|---------|---------|----------|
+| **Best for** | General-purpose, non-uniform motion | Fast inference, light VRAM | Large motion, occlusion-heavy scenes | High multipliers (4x/8x) in a single pass |
+| **Quality** | Highest overall | Good | Best on large motion | Good |
+| **Speed** | Moderate | Fastest | Slowest | Fast for 4x/8x (single pass) |
+| **VRAM** | ~2 GB/pair | ~1.5 GB/pair | ~3 GB/pair | ~2.5 GB/pair |
+| **Params** | ~17M | ~14–65M | ~15M + GMFlow | ~80M (RAFT) / ~123M (FlowFormer) |
+| **Arbitrary timestep** | Yes | Yes (with `_t` checkpoint) | No (fixed 0.5) | Yes (native single-pass) |
+| **4x/8x mode** | Recursive 2x passes | Recursive 2x passes | Recursive 2x passes | Single forward pass (or recursive) |
+| **Paper** | CVPR 2025 | CVPR 2023 | CVPR 2024 | NeurIPS 2024 |
+| **License** | Research only | Apache 2.0 | Apache 2.0 | Apache 2.0 |
 
-**TL;DR:** Start with **BIM-VFI** for best quality. Use **EMA-VFI** if you need speed or lower VRAM. Use **SGM-VFI** if your video has large camera motion or fast-moving objects that the others struggle with.
+**TL;DR:** Start with **BIM-VFI** for best quality. Use **EMA-VFI** if you need speed or lower VRAM. Use **SGM-VFI** if your video has large camera motion or fast-moving objects that the others struggle with. Use **GIMM-VFI** when you want 4x or 8x interpolation without recursive passes — it generates all intermediate frames in a single forward pass per pair.
 
 ## Nodes
 
@@ -106,6 +107,35 @@ Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate.
 
 Same as SGM-VFI Interpolate but processes a single segment. Same pattern as BIM-VFI Segment Interpolate.
 
+### GIMM-VFI
+
+#### Load GIMM-VFI Model
+
+Loads a GIMM-VFI checkpoint. Auto-downloads from [HuggingFace](https://huggingface.co/Kijai/GIMM-VFI_safetensors) on first use to `ComfyUI/models/gimm-vfi/`. The matching flow estimator (RAFT or FlowFormer) is auto-detected and downloaded alongside the main model.
+
+| Input | Description |
+|-------|-------------|
+| **model_path** | Checkpoint file from `models/gimm-vfi/` |
+| **ds_factor** | Downscale factor for internal processing (1.0 = full res, 0.5 = half). Lower = less VRAM, faster, less quality. Try 0.5 for 4K inputs |
+
+Available checkpoints:
+| Checkpoint | Variant | Params | Flow estimator (auto-downloaded) |
+|-----------|---------|--------|----------------------------------|
+| `gimmvfi_r_arb_lpips_fp32.safetensors` | RAFT | ~80M | `raft-things_fp32.safetensors` |
+| `gimmvfi_f_arb_lpips_fp32.safetensors` | FlowFormer | ~123M | `flowformer_sintel_fp32.safetensors` |
+
+#### GIMM-VFI Interpolate
+
+Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate, plus:
+
+| Input | Description |
+|-------|-------------|
+| **single_pass** | When enabled (default), generates all intermediate frames per pair in one forward pass using GIMM-VFI's arbitrary-timestep capability. No recursive 2x passes needed for 4x or 8x. Disable to use the standard recursive approach (same as BIM/EMA/SGM) |
+
+#### GIMM-VFI Segment Interpolate
+
+Same as GIMM-VFI Interpolate but processes a single segment. Same pattern as BIM-VFI Segment Interpolate.
+
 **Output frame count (all models):** 2x = 2N-1, 4x = 4N-3, 8x = 8N-7
 
 ## Installation
@@ -117,7 +147,7 @@ cd ComfyUI/custom_nodes
 git clone https://github.com/your-user/ComfyUI-Tween.git
 ```
 
-Dependencies (`gdown`, `cupy`, `timm`) are auto-installed on first load. The correct `cupy` variant is detected from your PyTorch CUDA version.
+Dependencies (`gdown`, `cupy`, `timm`, `omegaconf`, `easydict`, `yacs`, `einops`, `huggingface_hub`) are auto-installed on first load. The correct `cupy` variant is detected from your PyTorch CUDA version.
 
 > **Warning:** `cupy` is a large package (~800MB) and compilation/installation can take several minutes. The first ComfyUI startup after installing this node may appear to hang while `cupy` installs in the background. Check the console log for progress. If auto-install fails (e.g. missing build tools in Docker), install manually with:
 > ```bash
@@ -134,9 +164,11 @@ python install.py
 ### Requirements
 
 - PyTorch with CUDA
-- `cupy` (matching your CUDA version, for BIM-VFI and SGM-VFI)
+- `cupy` (matching your CUDA version, for BIM-VFI, SGM-VFI, and GIMM-VFI)
 - `timm` (for EMA-VFI and SGM-VFI)
-- `gdown` (for model auto-download)
+- `gdown` (for BIM-VFI/EMA-VFI/SGM-VFI model auto-download)
+- `omegaconf`, `easydict`, `yacs`, `einops` (for GIMM-VFI)
+- `huggingface_hub` (for GIMM-VFI model auto-download)
 
 ## VRAM Guide
 
@@ -149,7 +181,7 @@ python install.py
 
 ## Acknowledgments
 
-This project wraps the official [BiM-VFI](https://github.com/KAIST-VICLab/BiM-VFI) implementation by the [KAIST VIC Lab](https://github.com/KAIST-VICLab), the official [EMA-VFI](https://github.com/MCG-NJU/EMA-VFI) implementation by MCG-NJU, and the official [SGM-VFI](https://github.com/MCG-NJU/SGM-VFI) implementation by MCG-NJU. Architecture files in `bim_vfi_arch/`, `ema_vfi_arch/`, and `sgm_vfi_arch/` are vendored from their respective repositories with minimal modifications (relative imports, device-awareness fixes, inference-only paths).
+This project wraps the official [BiM-VFI](https://github.com/KAIST-VICLab/BiM-VFI) implementation by the [KAIST VIC Lab](https://github.com/KAIST-VICLab), the official [EMA-VFI](https://github.com/MCG-NJU/EMA-VFI) implementation by MCG-NJU, the official [SGM-VFI](https://github.com/MCG-NJU/SGM-VFI) implementation by MCG-NJU, and the [GIMM-VFI](https://github.com/GSeanCDAT/GIMM-VFI) implementation by S-Lab (NTU). GIMM-VFI architecture files in `gimm_vfi_arch/` are adapted from [kijai/ComfyUI-GIMM-VFI](https://github.com/kijai/ComfyUI-GIMM-VFI) with safetensors checkpoints from [Kijai/GIMM-VFI_safetensors](https://huggingface.co/Kijai/GIMM-VFI_safetensors). Architecture files in `bim_vfi_arch/`, `ema_vfi_arch/`, `sgm_vfi_arch/`, and `gimm_vfi_arch/` are vendored from their respective repositories with minimal modifications (relative imports, device-awareness fixes, inference-only paths).
 
 **BiM-VFI:**
 > Wonyong Seo, Jihyong Oh, and Munchurl Kim.
@@ -196,6 +228,21 @@ This project wraps the official [BiM-VFI](https://github.com/KAIST-VICLab/BiM-VF
 }
 ```
 
+**GIMM-VFI:**
+> Zujin Guo, Wei Li, and Chen Change Loy.
+> "Generalizable Implicit Motion Modeling for Video Frame Interpolation."
+> *Advances in Neural Information Processing Systems (NeurIPS)*, 2024.
+> [[arXiv]](https://arxiv.org/abs/2407.08680) [[GitHub]](https://github.com/GSeanCDAT/GIMM-VFI)
+
+```bibtex
+@inproceedings{guo2024gimmvfi,
+  title={Generalizable Implicit Motion Modeling for Video Frame Interpolation},
+  author={Guo, Zujin and Li, Wei and Loy, Chen Change},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
+  year={2024}
+}
+```
+
 ## License
 
 The BiM-VFI model weights and architecture code are provided by KAIST VIC Lab for **research and education purposes only**. Commercial use requires permission from the principal investigator (Prof. Munchurl Kim, mkimee@kaist.ac.kr). See the [original repository](https://github.com/KAIST-VICLab/BiM-VFI) for details.
@@ -203,3 +250,5 @@ The BiM-VFI model weights and architecture code are provided by KAIST VIC Lab fo
 The EMA-VFI model weights and architecture code are released under the [Apache 2.0 License](https://github.com/MCG-NJU/EMA-VFI/blob/main/LICENSE). See the [original repository](https://github.com/MCG-NJU/EMA-VFI) for details.
 
 The SGM-VFI model weights and architecture code are released under the [Apache 2.0 License](https://github.com/MCG-NJU/SGM-VFI/blob/main/LICENSE). See the [original repository](https://github.com/MCG-NJU/SGM-VFI) for details.
+
+The GIMM-VFI model weights and architecture code are released under the [Apache 2.0 License](https://github.com/GSeanCDAT/GIMM-VFI/blob/main/LICENSE). See the [original repository](https://github.com/GSeanCDAT/GIMM-VFI) for details. ComfyUI adaptation based on [kijai/ComfyUI-GIMM-VFI](https://github.com/kijai/ComfyUI-GIMM-VFI).
