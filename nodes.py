@@ -1731,16 +1731,15 @@ class FlashVSRUpscale:
                 chunks.append((prev_start, last_end))
 
         # Estimate total pipeline steps for progress bar
-        # Mirrors _prepare_video: N+2 tail, align (n-5)%8, then align_frames(padded+4)
+        # Mirrors _prepare_video: target = max(N, 25), round up to 8k+1
         total_steps = 0
         for cs, ce in chunks:
             n = ce - cs
-            padded = n + 2
-            remainder = (padded - 5) % 8
+            target = max(n, 25)
+            remainder = (target - 1) % 8
             if remainder != 0:
-                padded += 8 - remainder
-            aligned = FlashVSRModel._align_frames(padded + 4)
-            total_steps += max(1, (aligned - 1) // 8 - 2)
+                target += 8 - remainder
+            total_steps += max(1, (target - 1) // 8 - 2)
 
         pbar = ProgressBar(total_steps)
         step_ref = [0]
