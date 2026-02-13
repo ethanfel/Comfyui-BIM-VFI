@@ -1522,9 +1522,18 @@ FLASHVSR_REQUIRED_FILES = [
     "Prompt.safetensors",
 ]
 
-FLASHVSR_MODEL_DIR = os.path.join(folder_paths.models_dir, "flashvsr")
-if not os.path.exists(FLASHVSR_MODEL_DIR):
-    os.makedirs(FLASHVSR_MODEL_DIR, exist_ok=True)
+# Check common locations so we reuse models from 1038lab/ComfyUI-FlashVSR
+FLASHVSR_MODEL_DIR = None
+for _dirname in ("FlashVSR", "flashvsr"):
+    _candidate = os.path.join(folder_paths.models_dir, _dirname)
+    if os.path.isdir(_candidate) and all(
+        os.path.exists(os.path.join(_candidate, f)) for f in FLASHVSR_REQUIRED_FILES
+    ):
+        FLASHVSR_MODEL_DIR = _candidate
+        break
+if FLASHVSR_MODEL_DIR is None:
+    # Default to "FlashVSR" (matches 1038lab convention)
+    FLASHVSR_MODEL_DIR = os.path.join(folder_paths.models_dir, "FlashVSR")
 
 
 def download_flashvsr_models(model_dir):
@@ -1536,6 +1545,7 @@ def download_flashvsr_models(model_dir):
     if not missing:
         return
 
+    os.makedirs(model_dir, exist_ok=True)
     logger.info(f"[FlashVSR] Missing files: {', '.join(missing)}. Downloading from HuggingFace...")
     snapshot_download(
         repo_id=FLASHVSR_HF_REPO,
