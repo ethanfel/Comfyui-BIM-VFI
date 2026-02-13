@@ -31,14 +31,23 @@ except Exception:
     SAGE_ATTN_AVAILABLE = False
 
 try:
-    from sageattn.core import sparse_sageattn
+    from .sparse_sage.core import sparse_sageattn
     assert callable(sparse_sageattn)
     SPARSE_SAGE_AVAILABLE = True
 except Exception:
-    SPARSE_SAGE_AVAILABLE = False
-    sparse_sageattn = None
+    try:
+        from sageattn.core import sparse_sageattn
+        assert callable(sparse_sageattn)
+        SPARSE_SAGE_AVAILABLE = True
+    except Exception:
+        SPARSE_SAGE_AVAILABLE = False
+        sparse_sageattn = None
 from PIL import Image
 import numpy as np
+
+print(f"[FlashVSR] Attention backends: sparse_sage={SPARSE_SAGE_AVAILABLE}, "
+      f"flash_attn_3={FLASH_ATTN_3_AVAILABLE}, flash_attn_2={FLASH_ATTN_2_AVAILABLE}, "
+      f"sage_attn={SAGE_ATTN_AVAILABLE}")
 
 
 # ----------------------------
