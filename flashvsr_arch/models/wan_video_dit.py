@@ -159,7 +159,6 @@ def generate_draft_block_mask(batch_size, nheads, seqlen,
     # 修正：上行变量名统一
     # mask_new = rearrange(attn_map, 'h (it s1) s2 -> h (it s1) s2', it=seqlen) * 0 + mask_new
     mask = mask_new.unsqueeze(0).repeat(batch_size, 1, 1, 1)
-    mask = mask.repeat_interleave(2, dim=-1)
     return mask
 
 
@@ -413,7 +412,7 @@ class SelfAttention(nn.Module):
             self.local_attn_mask_h = h//8
             self.local_attn_mask_w = w//8
             self.local_range = local_range
-        attention_mask = generate_draft_block_mask(B, self.num_heads, seqlen, q_w, k_w, topk=topk, local_attn_mask=self.local_attn_mask)
+        attention_mask = generate_draft_block_mask_refined(B, self.num_heads, seqlen, q_w, k_w, topk=topk, local_attn_mask=self.local_attn_mask)
 
         x = self.attn(reorder_q, reorder_k, reorder_v, attention_mask)
 

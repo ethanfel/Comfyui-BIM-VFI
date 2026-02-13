@@ -805,7 +805,7 @@ class FlashVSRModel:
         from einops import rearrange
         v = video.squeeze(0) if video.dim() == 5 else video
         v = rearrange(v, "C F H W -> F H W C")
-        return (v.float() + 1.0) / 2.0
+        return torch.clamp((v.float() + 1.0) / 2.0, 0.0, 1.0)
 
     # ------------------------------------------------------------------
     # Main upscale method
