@@ -648,7 +648,7 @@ class FlashVSRModel:
             ModelManager, FlashVSRFullPipeline,
             FlashVSRTinyPipeline, FlashVSRTinyLongPipeline,
         )
-        from .flashvsr_arch.models.utils import Buffer_LQ4x_Proj
+        from .flashvsr_arch.models.utils import Causal_LQ4x_Proj
         from .flashvsr_arch.models.TCDecoder import build_tcdecoder
 
         self.mode = mode
@@ -672,16 +672,18 @@ class FlashVSRModel:
             mm.load_models([dit_path])
             Pipeline = FlashVSRTinyLongPipeline if mode == "tiny-long" else FlashVSRTinyPipeline
             self.pipe = Pipeline.from_model_manager(mm, device=device)
-            self.pipe.TCDecoder = build_tcdecoder(
-                [512, 256, 128, 128], device, dtype, 16 + 768,
-            )
-            self.pipe.TCDecoder.load_state_dict(
-                load_file(tcd_path, device=device), strict=False,
-            )
-            self.pipe.TCDecoder.clean_mem()
 
-        # LQ frame projection
-        self.pipe.denoising_model().LQ_proj_in = Buffer_LQ4x_Proj(3, 1536, 1).to(device, dtype)
+        # TCDecoder for ALL modes (streaming per-chunk decode with LQ conditioning)
+        self.pipe.TCDecoder = build_tcdecoder(
+            [512, 256, 128, 128], device, dtype, 16 + 768,
+        )
+        self.pipe.TCDecoder.load_state_dict(
+            load_file(tcd_path, device=device), strict=False,
+        )
+        self.pipe.TCDecoder.clean_mem()
+
+        # LQ frame projection — Causal variant for FlashVSR v1.1
+        self.pipe.denoising_model().LQ_proj_in = Causal_LQ4x_Proj(3, 1536, 1).to(device, dtype)
         if os.path.exists(lq_path):
             lq_sd = load_file(lq_path, device="cpu")
             cleaned = {}
@@ -714,6 +716,8 @@ class FlashVSRModel:
             self.pipe.denoising_model().LQ_proj_in.clear_cache()
         if hasattr(self.pipe, "vae") and self.pipe.vae is not None:
             self.pipe.vae.clear_cache()
+        if hasattr(self.pipe, "TCDecoder") and self.pipe.TCDecoder is not None:
+            self.pipe.TCDecoder.clean_mem()
 
     # ------------------------------------------------------------------
     # Frame preprocessing / postprocessing helpers
@@ -743,7 +747,7 @@ class FlashVSRModel:
         1. Bicubic-upscale each frame to target resolution
         2. Centered symmetric padding to 128-pixel alignment (reflect mode)
         3. Normalize to [-1, 1]
-        4. Temporal padding: repeat last frame to reach 8k+1 count
+        4. Temporal padding: N+4 then floor to largest 8k+1 (matches naxci1 reference)
 
         No front dummy frames — the pipeline handles LQ indexing correctly
         starting from frame 0.
@@ -780,14 +784,16 @@ class FlashVSRModel:
 
         video = torch.stack(processed, 0).permute(1, 0, 2, 3).unsqueeze(0)
 
-        # Temporal padding: repeat last frame to reach 8k+1 (pipeline requirement)
-        target = max(N, 25)  # minimum 25 for streaming loop (P >= 1)
-        remainder = (target - 1) % 8
-        if remainder != 0:
-            target += 8 - remainder
+        # Temporal padding: N+4 then floor to largest 8k+1 (matches naxci1 reference)
+        num_with_pad = N + 4
+        target = ((num_with_pad - 1) // 8) * 8 + 1  # largest_8n1_leq
+        if target < 1:
+            target = 1
         if target > N:
             pad = video[:, :, -1:].repeat(1, 1, target - N, 1, 1)
             video = torch.cat([video, pad], dim=2)
+        elif target < N:
+            video = video[:, :, :target, :, :]
         nf = video.shape[2]
 
         return video, th, tw, nf, sh, sw, pad_top, pad_left
