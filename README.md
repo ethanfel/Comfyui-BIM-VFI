@@ -46,6 +46,8 @@ Interpolates frames from an image batch.
 | **keep_device** | Keep model on GPU between pairs (faster, ~200MB constant VRAM) |
 | **all_on_gpu** | Keep all intermediate frames on GPU (fast, needs large VRAM) |
 | **clear_cache_after_n_frames** | Clear CUDA cache every N pairs to prevent VRAM buildup |
+| **source_fps** | Input frame rate. Required when target_fps > 0 |
+| **target_fps** | Target output FPS. When > 0, overrides multiplier — auto-computes the optimal power-of-2 oversample then selects frames at exact target timestamps. 0 = use multiplier |
 
 #### BIM-VFI Segment Interpolate
 
@@ -53,7 +55,7 @@ Same as Interpolate but processes a single segment of the input. Chain multiple 
 
 ### Tween Concat Videos
 
-Concatenates segment video files into a single video using ffmpeg. Connect from any Segment Interpolate's model output to ensure it runs after all segments are saved. Works with all three models.
+Concatenates segment video files into a single video using ffmpeg. Connect from any Segment Interpolate's model output to ensure it runs after all segments are saved. Works with all four models.
 
 ### EMA-VFI
 
@@ -76,7 +78,7 @@ Available checkpoints:
 
 #### EMA-VFI Interpolate
 
-Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate.
+Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate (including target FPS mode).
 
 #### EMA-VFI Segment Interpolate
 
@@ -101,7 +103,7 @@ Available checkpoints:
 
 #### SGM-VFI Interpolate
 
-Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate.
+Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate (including target FPS mode).
 
 #### SGM-VFI Segment Interpolate
 
@@ -126,7 +128,7 @@ Available checkpoints:
 
 #### GIMM-VFI Interpolate
 
-Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate, plus:
+Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate (including target FPS mode), plus:
 
 | Input | Description |
 |-------|-------------|
@@ -136,7 +138,9 @@ Interpolates frames from an image batch. Same controls as BIM-VFI Interpolate, p
 
 Same as GIMM-VFI Interpolate but processes a single segment. Same pattern as BIM-VFI Segment Interpolate.
 
-**Output frame count (all models):** 2x = 2N-1, 4x = 4N-3, 8x = 8N-7
+**Output frame count (all models):**
+- Multiplier mode: 2x = 2N-1, 4x = 4N-3, 8x = 8N-7
+- Target FPS mode: `floor((N-1) / source_fps * target_fps) + 1` frames. Automatically oversamples to the nearest power-of-2 above the ratio, then selects frames at exact target timestamps. Downsampling (target < source) also works — frames are selected from the input with no model calls
 
 ## Installation
 
@@ -144,7 +148,7 @@ Clone into your ComfyUI `custom_nodes/` directory:
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/your-user/ComfyUI-Tween.git
+git clone https://github.com/Ethanfel/ComfyUI-Tween.git
 ```
 
 Dependencies (`gdown`, `cupy`, `timm`, `omegaconf`, `easydict`, `yacs`, `einops`, `huggingface_hub`) are auto-installed on first load. The correct `cupy` variant is detected from your PyTorch CUDA version.
