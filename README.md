@@ -49,6 +49,11 @@ Interpolates frames from an image batch.
 | **source_fps** | Input frame rate. Required when target_fps > 0 |
 | **target_fps** | Target output FPS. When > 0, overrides multiplier — auto-computes the optimal power-of-2 oversample then selects frames at exact target timestamps. 0 = use multiplier |
 
+| Output | Description |
+|--------|-------------|
+| **images** | Interpolated frames at the target FPS (or at the multiplied rate when target_fps = 0) |
+| **oversampled** | Full power-of-2 oversampled frames before target FPS selection. Same as `images` when target_fps = 0. Useful for inspecting the raw interpolation or feeding into another pipeline |
+
 #### BIM-VFI Segment Interpolate
 
 Same as Interpolate but processes a single segment of the input. Chain multiple instances with Save nodes between them to bound peak RAM. The model pass-through output forces sequential execution.

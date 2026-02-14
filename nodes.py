@@ -202,8 +202,8 @@ class BIMVFIInterpolate:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("images", "oversampled")
     FUNCTION = "interpolate"
     CATEGORY = "video/BIM-VFI"
 
@@ -275,7 +275,7 @@ class BIMVFIInterpolate:
                     keep_device, all_on_gpu, batch_size, chunk_size,
                     source_fps=0.0, target_fps=0.0):
         if images.shape[0] < 2:
-            return (images,)
+            return (images, images)
 
         # Target FPS mode: auto-compute multiplier from fps ratio
         use_target_fps = target_fps > 0 and source_fps > 0
@@ -285,7 +285,7 @@ class BIMVFIInterpolate:
                 # Downsampling or same fps — select from input directly
                 all_frames = images.permute(0, 3, 1, 2)
                 result = _select_target_fps_frames(all_frames, source_fps, target_fps, mult, all_frames.shape[0])
-                return (result.cpu().permute(0, 2, 3, 1),)
+                return (result.cpu().permute(0, 2, 3, 1), images)
         else:
             num_passes = {2: 1, 4: 2, 8: 3}[multiplier]
             mult = multiplier
@@ -344,13 +344,16 @@ class BIMVFIInterpolate:
 
         result = torch.cat(result_chunks, dim=0)
 
+        # Convert oversampled to ComfyUI format for second output
+        oversampled = result.cpu().permute(0, 2, 3, 1)
+
         # Target FPS: select frames from oversampled result
         if use_target_fps:
             result = _select_target_fps_frames(result, source_fps, target_fps, mult, total_input)
 
         # Convert back to ComfyUI [B, H, W, C], on CPU
         result = result.cpu().permute(0, 2, 3, 1)
-        return (result,)
+        return (result, oversampled)
 
 
 class BIMVFISegmentInterpolate(BIMVFIInterpolate):
@@ -461,7 +464,7 @@ class BIMVFISegmentInterpolate(BIMVFIInterpolate):
 
         # Standard multiplier mode
         is_continuation = segment_index > 0
-        (result,) = super().interpolate(
+        (result, _) = super().interpolate(
             segment_images, model, multiplier, clear_cache_after_n_frames,
             keep_device, all_on_gpu, batch_size, chunk_size,
         )
@@ -737,8 +740,8 @@ class EMAVFIInterpolate:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("images", "oversampled")
     FUNCTION = "interpolate"
     CATEGORY = "video/EMA-VFI"
 
@@ -803,7 +806,7 @@ class EMAVFIInterpolate:
                     keep_device, all_on_gpu, batch_size, chunk_size,
                     source_fps=0.0, target_fps=0.0):
         if images.shape[0] < 2:
-            return (images,)
+            return (images, images)
 
         # Target FPS mode: auto-compute multiplier from fps ratio
         use_target_fps = target_fps > 0 and source_fps > 0
@@ -812,7 +815,7 @@ class EMAVFIInterpolate:
             if num_passes == 0:
                 all_frames = images.permute(0, 3, 1, 2)
                 result = _select_target_fps_frames(all_frames, source_fps, target_fps, mult, all_frames.shape[0])
-                return (result.cpu().permute(0, 2, 3, 1),)
+                return (result.cpu().permute(0, 2, 3, 1), images)
         else:
             num_passes = {2: 1, 4: 2, 8: 3}[multiplier]
             mult = multiplier
@@ -871,13 +874,16 @@ class EMAVFIInterpolate:
 
         result = torch.cat(result_chunks, dim=0)
 
+        # Convert oversampled to ComfyUI format for second output
+        oversampled = result.cpu().permute(0, 2, 3, 1)
+
         # Target FPS: select frames from oversampled result
         if use_target_fps:
             result = _select_target_fps_frames(result, source_fps, target_fps, mult, total_input)
 
         # Convert back to ComfyUI [B, H, W, C], on CPU
         result = result.cpu().permute(0, 2, 3, 1)
-        return (result,)
+        return (result, oversampled)
 
 
 class EMAVFISegmentInterpolate(EMAVFIInterpolate):
@@ -985,7 +991,7 @@ class EMAVFISegmentInterpolate(EMAVFIInterpolate):
 
         # Standard multiplier mode
         is_continuation = segment_index > 0
-        (result,) = super().interpolate(
+        (result, _) = super().interpolate(
             segment_images, model, multiplier, clear_cache_after_n_frames,
             keep_device, all_on_gpu, batch_size, chunk_size,
         )
@@ -1128,8 +1134,8 @@ class SGMVFIInterpolate:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("images", "oversampled")
     FUNCTION = "interpolate"
     CATEGORY = "video/SGM-VFI"
 
@@ -1194,7 +1200,7 @@ class SGMVFIInterpolate:
                     keep_device, all_on_gpu, batch_size, chunk_size,
                     source_fps=0.0, target_fps=0.0):
         if images.shape[0] < 2:
-            return (images,)
+            return (images, images)
 
         # Target FPS mode: auto-compute multiplier from fps ratio
         use_target_fps = target_fps > 0 and source_fps > 0
@@ -1203,7 +1209,7 @@ class SGMVFIInterpolate:
             if num_passes == 0:
                 all_frames = images.permute(0, 3, 1, 2)
                 result = _select_target_fps_frames(all_frames, source_fps, target_fps, mult, all_frames.shape[0])
-                return (result.cpu().permute(0, 2, 3, 1),)
+                return (result.cpu().permute(0, 2, 3, 1), images)
         else:
             num_passes = {2: 1, 4: 2, 8: 3}[multiplier]
             mult = multiplier
@@ -1262,13 +1268,16 @@ class SGMVFIInterpolate:
 
         result = torch.cat(result_chunks, dim=0)
 
+        # Convert oversampled to ComfyUI format for second output
+        oversampled = result.cpu().permute(0, 2, 3, 1)
+
         # Target FPS: select frames from oversampled result
         if use_target_fps:
             result = _select_target_fps_frames(result, source_fps, target_fps, mult, total_input)
 
         # Convert back to ComfyUI [B, H, W, C], on CPU
         result = result.cpu().permute(0, 2, 3, 1)
-        return (result,)
+        return (result, oversampled)
 
 
 class SGMVFISegmentInterpolate(SGMVFIInterpolate):
@@ -1376,7 +1385,7 @@ class SGMVFISegmentInterpolate(SGMVFIInterpolate):
 
         # Standard multiplier mode
         is_continuation = segment_index > 0
-        (result,) = super().interpolate(
+        (result, _) = super().interpolate(
             segment_images, model, multiplier, clear_cache_after_n_frames,
             keep_device, all_on_gpu, batch_size, chunk_size,
         )
@@ -1536,8 +1545,8 @@ class GIMMVFIInterpolate:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("IMAGE", "IMAGE")
+    RETURN_NAMES = ("images", "oversampled")
     FUNCTION = "interpolate"
     CATEGORY = "video/GIMM-VFI"
 
@@ -1647,7 +1656,7 @@ class GIMMVFIInterpolate:
                     batch_size, chunk_size,
                     source_fps=0.0, target_fps=0.0):
         if images.shape[0] < 2:
-            return (images,)
+            return (images, images)
 
         # Target FPS mode: auto-compute multiplier from fps ratio
         use_target_fps = target_fps > 0 and source_fps > 0
@@ -1656,7 +1665,7 @@ class GIMMVFIInterpolate:
             if num_passes == 0:
                 all_frames = images.permute(0, 3, 1, 2)
                 result = _select_target_fps_frames(all_frames, source_fps, target_fps, mult, all_frames.shape[0])
-                return (result.cpu().permute(0, 2, 3, 1),)
+                return (result.cpu().permute(0, 2, 3, 1), images)
             # Override multiplier for single_pass mode
             multiplier = mult
         else:
@@ -1732,13 +1741,16 @@ class GIMMVFIInterpolate:
 
         result = torch.cat(result_chunks, dim=0)
 
+        # Convert oversampled to ComfyUI format for second output
+        oversampled = result.cpu().permute(0, 2, 3, 1)
+
         # Target FPS: select frames from oversampled result
         if use_target_fps:
             result = _select_target_fps_frames(result, source_fps, target_fps, mult, total_input)
 
         # Convert back to ComfyUI [B, H, W, C], on CPU
         result = result.cpu().permute(0, 2, 3, 1)
-        return (result,)
+        return (result, oversampled)
 
 
 class GIMMVFISegmentInterpolate(GIMMVFIInterpolate):
@@ -1856,7 +1868,7 @@ class GIMMVFISegmentInterpolate(GIMMVFIInterpolate):
 
         # Standard multiplier mode
         is_continuation = segment_index > 0
-        (result,) = super().interpolate(
+        (result, _) = super().interpolate(
             segment_images, model, multiplier, single_pass,
             clear_cache_after_n_frames, keep_device, all_on_gpu,
             batch_size, chunk_size,
